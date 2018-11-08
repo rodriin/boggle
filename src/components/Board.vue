@@ -3,27 +3,31 @@
     <div>
       Select your boggle board size:
       <div class="top-controls">
-        <v-btn :class="getBtnClass(4)" :color="getBtnColor(4)" v-on:click="setBoardSize(4)">
-          4 x 4
-        </v-btn>
-        <v-btn :class="getBtnClass(5)" :color="getBtnColor(5)" v-on:click="setBoardSize(5)">
-          5 x 5
-        </v-btn>
-        <v-btn :class="getBtnClass(6)" :color="getBtnColor(6)" v-on:click="setBoardSize(6)">
-          6 x 6
-        </v-btn>
+        <v-btn :class="getBtnClass({ y: 4, x: 4 })" :color="getBtnColor({ y: 4, x: 4 })"
+          v-on:click="setBoardSize({ y: 4, x: 4 })">4 x 4</v-btn>
+        <v-btn :class="getBtnClass({ y: 5, x: 5 })" :color="getBtnColor({ y: 5, x: 5 })"
+          v-on:click="setBoardSize({ y: 5, x: 5 })">5 x 5</v-btn>
+        <v-btn :class="getBtnClass({ y: 11, x: 11 })" :color="getBtnColor({ y: 11, x: 11 })"
+          v-on:click="setBoardSize({ y: 11, x: 11 })">11 x 11</v-btn>
+      </div>
+      <div class="top-controls">
+        <v-btn :class="getBtnClass({ y: 3, x: 5 })" :color="getBtnColor({ y: 3, x: 5 })"
+          v-on:click="setBoardSize({ y: 3, x: 5 })">5 x 3</v-btn>
+        <v-btn :class="getBtnClass({ y: 4, x: 9 })" :color="getBtnColor({ y: 4, x: 9 })"
+          v-on:click="setBoardSize({ y: 4, x: 9 })">9 x 4</v-btn>
+        <v-btn :class="getBtnClass({ y: 8, x: 5 })" :color="getBtnColor({ y: 8, x: 5 })"
+          v-on:click="setBoardSize({ y: 8, x: 5 })">5 x 8</v-btn>
       </div>
     </div>
     <v-form v-model="valid" ref="form" class="board">
-      <div v-for="y in size" :key="y" class='board-row'>
+      <div v-for="y in size.y" :key="y" class='board-row'>
         <v-text-field
           class="text-field"
           v-model="board[y - 1][x - 1]"
-          v-for="x in size"
+          v-for="x in size.x"
           placeholder="x"
           :key="x"
-          :maxlength="1"
-          :rules="[required, letterOnly]"
+          :rules="[required, letterOnly, letterCount]"
           box
           single-line
           hide-details/>
@@ -31,7 +35,7 @@
     </v-form>
     <div class="msg-container">
       <div class='error white--text' v-show='!isFormValid()'>
-        Please enter only one letter for each cube
+        Please enter only one letter for each cube or Qu
       </div>
     </div>
     <div class="bottom-controls">
@@ -59,8 +63,8 @@ export default {
   name: 'Board',
   data() {
     return {
-      size: 4,
-      board: this.getEmptyBoard(4),
+      size: { y: 4, x: 4 },
+      board: this.getEmptyBoard({ y: 4, x: 4 }),
       dictionary: null,
       results: {},
       enabled: false,
@@ -88,7 +92,7 @@ export default {
       return this.getResultIndex(index, col) < this.resultKeys.length;
     },
     getEmptyBoard(size) {
-      return Array(size).fill(null).map(() => Array(size).fill(null).map(() => ('')));
+      return Array(size.y).fill(null).map(() => Array(size.x).fill(null).map(() => ('')));
     },
     random() {
       this.board = this.getEmptyBoard(this.size);
@@ -118,17 +122,21 @@ export default {
     letterOnly(value) {
       return /^[a-zA-Z]+$/.test(value) || 'Letters only';
     },
+    letterCount(value) {
+      return (value && (value.length === 1 || value.toLowerCase() === 'qu'))
+            || 'Please enter one letter only or QU';
+    },
     getBtnColor(btnSize) {
-      if (this.size === btnSize) {
+      if (this.size.y === btnSize.y && this.size.x === btnSize.x) {
         return 'success';
       }
       return 'blue-grey';
     },
     getBtnClass(btnSize) {
-      if (this.size !== btnSize) {
-        return 'white--text';
+      if (this.size.y === btnSize.y && this.size.x === btnSize.x) {
+        return '';
       }
-      return '';
+      return 'white--text';
     },
     getResults() {
       this.results = {};
@@ -159,9 +167,10 @@ export default {
       const allLetters = {};
 
       allWords.forEach((word) => {
-        if (!allLetters[word.charAt(0)]) {
-          allLetters[word.charAt(0)] = 1;
-          this.letters.push(word.charAt(0));
+        const firstLetter = word.charAt(0);
+        if (!allLetters[firstLetter]) {
+          allLetters[firstLetter] = 1;
+          this.letters.push(firstLetter === 'Q' ? 'QU' : firstLetter);
         }
       });
 
@@ -175,53 +184,53 @@ export default {
     calculateResults() {
       this.board.forEach((yVal, y) => {
         yVal.forEach((xVal, x) => {
-          const visited = { [`${y}${x}`]: true };
+          const visited = { [`${y}.${x}`]: true };
           this.getAdjacentLetters(xVal, y, x, visited);
         });
       });
     },
-    getPosition(pos) {
-      return pos > -1 && pos < this.size ? pos : null;
+    getPosition(pos, axis) {
+      return pos > -1 && pos < axis ? pos : null;
     },
     getAdjacentLetters(word, y, x, visited) {
-      const left = this.getPosition(x - 1);
-      const right = this.getPosition(x + 1);
-      const up = this.getPosition(y - 1);
-      const down = this.getPosition(y + 1);
+      const left = this.getPosition(x - 1, this.size.x);
+      const right = this.getPosition(x + 1, this.size.x);
+      const up = this.getPosition(y - 1, this.size.y);
+      const down = this.getPosition(y + 1, this.size.y);
 
       if (word && word.length > 2 && this.dictionary.contains(word)) {
         this.results[word] = word.length - 2;
       }
 
-      if (left !== null && !visited[`${y}${left}`]) {
+      if (left !== null && !visited[`${y}.${left}`]) {
         this.getNextWord(word, y, left, visited);
       }
-      if (right !== null && !visited[`${y}${right}`]) {
+      if (right !== null && !visited[`${y}.${right}`]) {
         this.getNextWord(word, y, right, visited);
       }
-      if (up !== null && !visited[`${up}${x}`]) {
+      if (up !== null && !visited[`${up}.${x}`]) {
         this.getNextWord(word, up, x, visited);
       }
-      if (down !== null && !visited[`${down}${x}`]) {
+      if (down !== null && !visited[`${down}.${x}`]) {
         this.getNextWord(word, down, x, visited);
       }
-      if (up !== null && left !== null && !visited[`${up}${left}`]) {
+      if (up !== null && left !== null && !visited[`${up}.${left}`]) {
         this.getNextWord(word, up, left, visited);
       }
-      if (up !== null && right !== null && !visited[`${up}${right}`]) {
+      if (up !== null && right !== null && !visited[`${up}.${right}`]) {
         this.getNextWord(word, up, right, visited);
       }
-      if (down !== null && left !== null && !visited[`${down}${left}`]) {
+      if (down !== null && left !== null && !visited[`${down}.${left}`]) {
         this.getNextWord(word, down, left, visited);
       }
-      if (down !== null && right !== null && !visited[`${down}${right}`]) {
+      if (down !== null && right !== null && !visited[`${down}.${right}`]) {
         this.getNextWord(word, down, right, visited);
       }
     },
     getNextWord(word, y, x, visited) {
       const nextWord = `${word}${this.board[y][x]}`;
       if (this.dictionary.search(nextWord)) {
-        const nextVisited = { ...visited, [`${y}${x}`]: true };
+        const nextVisited = { ...visited, [`${y}.${x}`]: true };
         this.getAdjacentLetters(nextWord, y, x, nextVisited);
       }
     },
